@@ -5,6 +5,28 @@ plugins:
   - serverless-webpack
   - serverless-iam-roles-per-function
   - serverless-reqvalidator-plugin
+  - serverless-aws-documentation
+
+custom:
+  serverless-offline:
+    port: 3003
+
+  dynamodb:
+    start:
+      port: 8000
+      inMemory: true
+      migrate: true
+
+  documentation:
+    api:
+      info:
+        version: v1.0.0
+        title: Udagram TODO API
+        description: Serverless application for images sharing
+    models:
+      - name: TodoRequest
+        contentType: application/json
+        schema: ${file(models/create-todo-request.json)}
 
 provider:
   name: aws
@@ -47,6 +69,13 @@ functions:
           method: post
           path: todos
           cors: true
+          authorizer: Auth
+          reqValidatorName: RequestBodyValidator
+          documentation:
+            summary: Create a new todo
+            description: Create a new todo
+            requestModels:
+              "application/json": TodoRequest
     iamRoleStatements:
       - Effect: Allow
         Action:
@@ -110,18 +139,25 @@ resources:
         RestApiId:
           Ref: ApiGatewayRestApi
 
+    RequestBodyValidator:
+      Type: AWS::ApiGateway::RequestValidator
+      Properties:
+        Name: "request-body-validator"
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ValidateRequestBody: true
+        ValidateRequestParameters: false
+
     TodosTable:
       Type: AWS::DynamoDB::Table
       Properties:
         AttributeDefinitions:
-          - AttributeName: todoId
-            AttributeType: S
           - AttributeName: createdAt
             AttributeType: S
           - AttributeName: userId
             AttributeType: S
         KeySchema:
-          - AttributeName: todoId
+          - AttributeName: userId
             KeyType: HASH
           - AttributeName: createdAt
             KeyType: RANGE
@@ -130,9 +166,9 @@ resources:
         LocalSecondaryIndexes:
           - IndexName: ${self:provider.environment.INDEX_NAME}
             KeySchema:
-              - AttributeName: todoId
-                KeyType: HASH
               - AttributeName: userId
+                KeyType: HASH
+              - AttributeName: createdAt
                 KeyType: RANGE
             Projection:
               ProjectionType: ALL # What attributes will be copied to an index
