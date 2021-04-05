@@ -1,23 +1,22 @@
 import "source-map-support/register";
 
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
-import { parseUserId } from "../../auth/utils";
 import * as middy from "middy";
 import { cors } from "middy/middlewares";
-import { TodosAccess } from "../../dataLayer/todoAccess";
+import { getAllTodos } from "../../businessLogic/todos";
+
 import { createLogger } from "../../utils/logger";
 const logger = createLogger("getTodos");
 
 export const handler = middy(
   async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     console.log("Processing event: ", event);
-    const todosAcess = new TodosAccess();
+
     const authorization = event.headers.Authorization;
     const split = authorization.split(" ");
     const jwtToken = split[1];
+    const items = await getAllTodos(jwtToken);
 
-    const userId = parseUserId(jwtToken);
-    const items = await todosAcess.getTodosFor(userId);
     logger.info("items", items);
     return {
       statusCode: 200,
